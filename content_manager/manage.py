@@ -1,13 +1,12 @@
 import os
 import pathlib
 from glob import glob
-from typing import Any
+from typing import Any, Callable, TypeVar
 
-from yaml import YAMLError
+import yaml
 
-from content_manager.fs import (load_object_from_yaml, load_sample_from_csv,
-                                save_object_as_yaml, validate_jinja_filename,
-                                validate_yaml_filename)
+from content_manager.validators import (validate_jinja_filename,
+                                        validate_yaml_filename)
 
 USER_HOME_DIR = pathlib.Path.home().absolute()
 CONTENT_BASE_DIR = os.path.join(USER_HOME_DIR, '.eventum', 'content')
@@ -31,14 +30,28 @@ class ContentManagementError(Exception):
     """Base exception for all content manipulation errors."""
 
 
+def _get_filenames(root_dir: str, patterns: list[str]) -> list[str]:
+    """Get all relative paths of currently existing files that
+    match the provided patterns. Paths are relative to `root_dir`.
+    The filenames search is recursive.
+    """
+    return [
+        file for pattern in patterns
+        for file in glob(
+            pathname=pattern,
+            root_dir=root_dir,
+            recursive=True
+        )
+    ]
+
+
 def get_time_pattern_filenames() -> list[str]:
     """Get all relative paths of currently existing time patterns in
     content directory. Paths are relative to time patterns directory.
     """
-    return glob(
-        pathname='**/*.y*ml',
+    return _get_filenames(
         root_dir=TIME_PATTERNS_DIR,
-        recursive=True
+        patterns=['**/*.yml', '**/*.yaml']
     )
 
 
@@ -46,10 +59,9 @@ def get_template_filenames() -> list[str]:
     """Get all relative paths of currently existing templates in
     content directory. Paths are relative to templates directory.
     """
-    return glob(
-        pathname='**/*.jinja',
+    return _get_filenames(
         root_dir=EVENT_TEMPLATES_DIR,
-        recursive=True
+        patterns=['**/*.jinja']
     )
 
 
@@ -57,45 +69,98 @@ def get_csv_sample_filenames() -> list[str]:
     """Get all relative paths of currently existing samples in
     content directory. Paths are relative to templates directory.
     """
-    return glob(
-        pathname='**/*.csv',
+    return _get_filenames(
         root_dir=CSV_SAMPLES_DIR,
-        recursive=True
+        patterns=['**/*.csv']
     )
 
 
+def get_app_config_filenames() -> list[str]:
+    """Get all relative paths of currently existing app configuration
+    files in content directory. Paths are relative to templates
+    directory.
+    """
+    return _get_filenames(
+        root_dir=APPLICATION_CONFIGS_DIR,
+        patterns=['**/*.yml', '**/*.yaml']
+    )
+
+
+def _save_object(
+    content: Any,
+    path: str,
+    root_dir: str | None = None,
+    filename_validator: Callable[[str], None] | None = None,
+    formatter: Callable[[Any], str] | None = None,
+    overwrite: bool = False
+) -> None:
+    """Save `content` to specified `path`. If path is  relative then
+    `root_dir` must be provided and it is used as base directory for
+    `path`. If `filename_validator` is provided then it's called with
+    filename part of `path`. If file is already exists under specified
+    location and `overwrite` is `False`, then exception is raised. If
+    `formatter` is provided it is called with `content` parameter and
+    returned value is used as new content that will be written to file.
+    Parameter `formatter` must be provided if `content` parameter is
+    not of class `str`.
+    """
+    if not os.path.isabs(path):
+        if root_dir is None:
+            raise ContentManagementError(
+                'Parameter `root_dir` must be provided when relative '
+                '`path` is used'
+            )
+        path = os.path.join(root_dir, path)
+
+    base_path, filename = os.path.split(path)
+
+    if filename_validator is not None:
+        try:
+            filename_validator(filename)
+        except ValueError as e:
+            raise ContentManagementError(str(e)) from e
+
+    if overwrite is False and os.path.exists(path):
+        raise ContentManagementError(
+            'File already exists in specified location'
+        )
+
+    os.makedirs(base_path, exist_ok=True)
+
+    if formatter is not None:
+        try:
+            content = formatter(content)
+        except Exception as e:
+            raise ContentManagementError(f'Failed to format content: {e}')
+    elif not isinstance(content, str):
+        raise ContentManagementError(
+            'Parameter `formatter` must be provided when `content` '
+            'in not of class string'
+        )
+
+    try:
+        with open(path, 'w') as f:
+            f.write(content)
+    except OSError as e:
+        raise ContentManagementError(str(e)) from e
+
+
 def save_time_pattern(
-    pattern_config: dict,
+    config: dict,
     path: str,
     overwrite: bool = False
 ) -> None:
     """Save time pattern in specified path. If path is relative then it
     is saved in content directory.
     """
-    if not os.path.isabs(path):
-        path = os.path.join(TIME_PATTERNS_DIR, path)
-
-    base_path, filename = os.path.split(path)
-
-    try:
-        validate_yaml_filename(filename)
-    except ValueError as e:
-        raise ContentManagementError(str(e)) from e
-
-    if overwrite is False and os.path.exists(path):
-        raise ContentManagementError(
-            'Time pattern already exists in specified location'
-        )
-
-    os.makedirs(base_path, exist_ok=True)
-
-    try:
-        save_object_as_yaml(
-            data=pattern_config,
-            filepath=path
-        )
-    except (OSError, YAMLError) as e:
-        raise ContentManagementError(str(e)) from e
+    _save_object(
+        content=config,
+        path=path,
+        root_dir=TIME_PATTERNS_DIR,
+        filename_validator=validate_yaml_filename,
+        formatter=yaml.dump,
+        overwrite=overwrite
+    )
 
 
 def save_template(
@@ -106,81 +171,112 @@ def save_template(
     """Save template in specified path. If path is relative then it
     is saved in content directory.
     """
+    _save_object(
+        content=content,
+        path=path,
+        root_dir=EVENT_TEMPLATES_DIR,
+        filename_validator=validate_jinja_filename,
+        overwrite=overwrite
+    )
+
+
+def save_app_config(
+    config: dict,
+    path: str,
+    overwrite: bool = False
+) -> None:
+    """Save app configuration in specified path. If path is relative
+    then it is saved in content directory.
+    """
+    _save_object(
+        content=config,
+        path=path,
+        root_dir=APPLICATION_CONFIGS_DIR,
+        filename_validator=validate_yaml_filename,
+        formatter=yaml.dump,
+        overwrite=overwrite
+    )
+
+
+LoaderT = TypeVar('LoaderT')
+
+
+def _load_object(
+    path: str,
+    root_dir: str | None = None,
+    loader: Callable[[str], LoaderT] | None = None
+) -> LoaderT | str:
+    """Load object from specified `path`. If path is  relative then
+    `root_dir` must be provided and it is used as base directory for
+    `path`. If `loader` is provided then it is called on content read
+    from the file and result of call used as returned value. Otherwise
+    content of a file as string is returned.
+    """
+
     if not os.path.isabs(path):
-        path = os.path.join(EVENT_TEMPLATES_DIR, path)
-
-    base_path, filename = os.path.split(path)
+        path = os.path.join(root_dir, path)
 
     try:
-        validate_jinja_filename(filename)
-    except ValueError as e:
-        raise ContentManagementError(str(e)) from e
-
-    if overwrite is False and os.path.exists(path):
-        raise ContentManagementError(
-            'Template already exists in specified location'
-        )
-
-    os.makedirs(base_path, exist_ok=True)
-
-    try:
-        with open(path, 'w') as f:
-            f.write(content)
+        with open(path) as f:
+            content = f.read()
     except OSError as e:
         raise ContentManagementError(str(e)) from e
+
+    if loader is None:
+        return content
+
+    try:
+        return loader(content)
+    except Exception as e:
+        raise ContentManagementError(f'Failed to load content: {e}')
 
 
 def load_time_pattern(path: str) -> Any:
     """Load specified time pattern. If path is relative then it is
     loaded from content directory.
     """
-    if not os.path.isabs(path):
-        path = os.path.join(TIME_PATTERNS_DIR, path)
-
-    try:
-        return load_object_from_yaml(path)
-    except (OSError, YAMLError) as e:
-        raise ContentManagementError(str(e)) from e
+    return _load_object(
+        path=path,
+        root_dir=TIME_PATTERNS_DIR,
+        loader=lambda content: yaml.load(content, yaml.SafeLoader)
+    )
 
 
 def load_template(path: str) -> str:
     """Load specified template. If path is relative then it is
     loaded from content directory.
     """
-    if not os.path.isabs(path):
-        path = os.path.join(EVENT_TEMPLATES_DIR, path)
-
-    try:
-        with open(path) as f:
-            return f.read()
-    except OSError as e:
-        raise ContentManagementError(str(e)) from e
+    return _load_object(
+        path=path,
+        root_dir=EVENT_TEMPLATES_DIR
+    )
 
 
-def load_csv_sample(path: str, delimiter: str = ',') -> list[tuple[str, ...]]:
+def load_csv_sample(path: str, delimiter: str = ',') -> tuple[tuple[str, ...]]:
     """Load specified csv sample and return it as list of tuples. If
     path is relative then it is loaded from content directory.
     """
-    if not os.path.isabs(path):
-        path = os.path.join(CSV_SAMPLES_DIR, path)
-
-    try:
-        return load_sample_from_csv(
-            filepath=path,
-            delimiter=delimiter
+    def csv_loader(content: str) -> tuple[tuple[str, ...]]:
+        return tuple(
+            [
+                tuple(line.split(delimiter))
+                for line in content.split(os.linesep)
+            ]
         )
-    except OSError as e:
-        raise ContentManagementError(str(e)) from e
+
+    return _load_object(
+        path=path,
+        root_dir=CSV_SAMPLES_DIR,
+        loader=csv_loader
+    )
 
 
 def load_app_config(path: str) -> Any:
     """Load specified application config. If path is relative then it
     is loaded from content directory.
     """
-    if not os.path.isabs(path):
-        path = os.path.join(APPLICATION_CONFIGS_DIR, path)
-
-    try:
-        return load_object_from_yaml(path)
-    except (OSError, YAMLError) as e:
-        raise ContentManagementError(str(e)) from e
+    return _load_object(
+        path=path,
+        root_dir=APPLICATION_CONFIGS_DIR,
+        loader=lambda content: yaml.load(content, yaml.SafeLoader)
+    )
