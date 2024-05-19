@@ -1,11 +1,12 @@
 import os
 import pathlib
 from glob import glob
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Iterable, TypeVar
 
 import yaml
 
-from content_manager.validators import (validate_jinja_filename,
+from content_manager.validators import (validate_csv_filename,
+                                        validate_jinja_filename,
                                         validate_yaml_filename)
 
 USER_HOME_DIR = pathlib.Path.home().absolute()
@@ -40,7 +41,8 @@ def _get_filenames(root_dir: str, patterns: list[str]) -> list[str]:
         for file in glob(
             pathname=pattern,
             root_dir=root_dir,
-            recursive=True
+            recursive=True,
+            include_hidden=True
         )
     ]
 
@@ -180,6 +182,26 @@ def save_template(
     )
 
 
+def save_csv_sample(
+    sample: Iterable[Iterable[str]],
+    path: str,
+    overwrite: bool = False
+) -> None:
+    """Save csv sample in specified path. If path is relative then it
+    is saved in content directory.
+    """
+    _save_object(
+        content=sample,
+        path=path,
+        root_dir=CSV_SAMPLES_DIR,
+        filename_validator=validate_csv_filename,
+        formatter=lambda sample: os.linesep.join(
+            [','.join(row) for row in sample]
+        ),
+        overwrite=overwrite
+    )
+
+
 def save_app_config(
     config: dict,
     path: str,
@@ -206,13 +228,12 @@ def _load_object(
     root_dir: str | None = None,
     loader: Callable[[str], LoaderT] | None = None
 ) -> LoaderT | str:
-    """Load object from specified `path`. If path is  relative then
+    """Load object from specified `path`. If path is relative then
     `root_dir` must be provided and it is used as base directory for
     `path`. If `loader` is provided then it is called on content read
     from the file and result of call used as returned value. Otherwise
     content of a file as string is returned.
     """
-
     if not os.path.isabs(path):
         if root_dir is None:
             raise ContentManagementError(
@@ -287,4 +308,65 @@ def load_app_config(path: str) -> Any:
         path=path,
         root_dir=APPLICATION_CONFIGS_DIR,
         loader=lambda content: yaml.load(content, yaml.SafeLoader)
+    )
+
+
+def _delete_object(path: str, root_dir: str | None = None) -> None:
+    """Delete file under specified path. If path is relative then
+    `root_dir` must be provided and it is used as base directory for
+    `path`.
+    """
+    if not os.path.isabs(path):
+        if root_dir is None:
+            raise ContentManagementError(
+                'Parameter `root_dir` must be provided when relative '
+                '`path` is used'
+            )
+        path = os.path.join(root_dir, path)
+
+    if not os.path.exists(path):
+        raise ContentManagementError(
+            f'Failed to delete: no such file "{path}"'
+        )
+
+    os.remove(path)
+
+
+def delete_time_pattern(path: str) -> None:
+    """Delete specified time pattern. If path is relative then it will
+    be deleted from content directory.
+    """
+    _delete_object(
+        path=path,
+        root_dir=TIME_PATTERNS_DIR
+    )
+
+
+def delete_template(path: str) -> None:
+    """Delete specified template. If path is relative then it will be
+    deleted from content directory.
+    """
+    _delete_object(
+        path=path,
+        root_dir=EVENT_TEMPLATES_DIR
+    )
+
+
+def delete_csv_sample(path: str) -> None:
+    """Delete specified csv sample. If path is relative then it will be
+    deleted from content directory.
+    """
+    _delete_object(
+        path=path,
+        root_dir=CSV_SAMPLES_DIR
+    )
+
+
+def delete_app_config(path: str) -> None:
+    """Delete specified app config. If path is relative then it will be
+    deleted from content directory.
+    """
+    _delete_object(
+        path=path,
+        root_dir=APPLICATION_CONFIGS_DIR
     )
