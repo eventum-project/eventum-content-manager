@@ -214,6 +214,11 @@ def _load_object(
     """
 
     if not os.path.isabs(path):
+        if root_dir is None:
+            raise ContentManagementError(
+                'Parameter `root_dir` must be provided when relative '
+                '`path` is used'
+            )
         path = os.path.join(root_dir, path)
 
     try:
@@ -252,11 +257,14 @@ def load_template(path: str) -> str:
     )
 
 
-def load_csv_sample(path: str, delimiter: str = ',') -> tuple[tuple[str, ...]]:
+def load_csv_sample(
+    path: str,
+    delimiter: str = ','
+) -> tuple[tuple[str, ...], ...]:
     """Load specified csv sample and return it as list of tuples. If
     path is relative then it is loaded from content directory.
     """
-    def csv_loader(content: str) -> tuple[tuple[str, ...]]:
+    def csv_loader(content: str) -> tuple[tuple[str, ...], ...]:
         return tuple(
             [
                 tuple(line.split(delimiter))
@@ -264,7 +272,7 @@ def load_csv_sample(path: str, delimiter: str = ',') -> tuple[tuple[str, ...]]:
             ]
         )
 
-    return _load_object(
+    return _load_object(    # type: ignore[return-value]
         path=path,
         root_dir=CSV_SAMPLES_DIR,
         loader=csv_loader
