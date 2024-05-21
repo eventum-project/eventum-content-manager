@@ -5,9 +5,9 @@ from typing import Any, Callable, Iterable, TypeVar
 
 import yaml
 
-from content_manager.validators import (validate_csv_filename,
-                                        validate_jinja_filename,
-                                        validate_yaml_filename)
+from eventum_content_manager.validators import (validate_csv_filename,
+                                                validate_jinja_filename,
+                                                validate_yaml_filename)
 
 USER_HOME_DIR = pathlib.Path.home().absolute()
 CONTENT_BASE_DIR = os.path.join(USER_HOME_DIR, '.eventum', 'content')

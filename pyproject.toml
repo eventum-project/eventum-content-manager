@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "eventum-content-manager"
-version = "1.0.2"
+version = "1.0.3"
 description = "Content manager for Eventum"
 license = "Apache-2.0"
 authors = ["Nikita Reznikov <nikita.reznikov.public@mail.ru>"]
@@ -14,9 +14,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-]
-packages = [
-    {include = "content_manager"}
 ]
 
 [tool.poetry.dependencies]

@@ -1,8 +1,8 @@
 import pytest
 
-from content_manager.validators import (validate_csv_filename,
-                                        validate_jinja_filename,
-                                        validate_yaml_filename)
+from eventum_content_manager.validators import (validate_csv_filename,
+                                                validate_jinja_filename,
+                                                validate_yaml_filename)
 
 
 def test_validate_jinja_filename():

@@ -4,17 +4,18 @@ from uuid import uuid4
 
 import pytest
 
-from content_manager.manage import (ContentManagementError, delete_app_config,
-                                    delete_csv_sample, delete_template,
-                                    delete_time_pattern,
-                                    get_app_config_filenames,
-                                    get_csv_sample_filenames,
-                                    get_template_filenames,
-                                    get_time_pattern_filenames,
-                                    load_app_config, load_csv_sample,
-                                    load_template, load_time_pattern,
-                                    save_app_config, save_csv_sample,
-                                    save_template, save_time_pattern)
+from eventum_content_manager.manage import (ContentManagementError,
+                                            delete_app_config,
+                                            delete_csv_sample, delete_template,
+                                            delete_time_pattern,
+                                            get_app_config_filenames,
+                                            get_csv_sample_filenames,
+                                            get_template_filenames,
+                                            get_time_pattern_filenames,
+                                            load_app_config, load_csv_sample,
+                                            load_template, load_time_pattern,
+                                            save_app_config, save_csv_sample,
+                                            save_template, save_time_pattern)
 
 TESTS_DIR = '.tests'
 TEMP_DIR = tempfile.gettempdir()
