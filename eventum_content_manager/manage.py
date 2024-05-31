@@ -289,7 +289,7 @@ def load_csv_sample(
         return tuple(
             [
                 tuple(line.split(delimiter))
-                for line in content.split(os.linesep)
+                for line in content.strip().split(os.linesep)
             ]
         )
 
