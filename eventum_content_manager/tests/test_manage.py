@@ -6,16 +6,21 @@ import pytest
 
 from eventum_content_manager.manage import (ContentManagementError,
                                             delete_app_config,
+                                            delete_compose_config,
                                             delete_csv_sample, delete_template,
                                             delete_time_pattern,
                                             get_app_config_filenames,
+                                            get_compose_config_filenames,
                                             get_csv_sample_filenames,
                                             get_template_filenames,
                                             get_time_pattern_filenames,
-                                            load_app_config, load_csv_sample,
-                                            load_template, load_time_pattern,
-                                            save_app_config, save_csv_sample,
-                                            save_template, save_time_pattern)
+                                            load_app_config,
+                                            load_compose_config,
+                                            load_csv_sample, load_template,
+                                            load_time_pattern, save_app_config,
+                                            save_compose_config,
+                                            save_csv_sample, save_template,
+                                            save_time_pattern)
 
 TESTS_DIR = '.tests'
 TEMP_DIR = tempfile.gettempdir()
@@ -184,7 +189,7 @@ def test_operate_app_config(
     assert app_config_rel_path not in get_app_config_filenames()
 
     # absolute path
-    save_time_pattern(
+    save_app_config(
         config=app_config,
         path=app_config_abs_path,
         overwrite=True
@@ -259,3 +264,62 @@ def test_operate_csv_sample(
 
     delete_csv_sample(csv_sample_abs_path)
     assert not os.path.exists(csv_sample_abs_path)
+
+
+@pytest.fixture
+def compose_config() -> dict:
+    return {'config_data': 'test'}
+
+
+@pytest.fixture
+def compose_config_rel_path() -> str:
+    filename = f'{uuid4()}.yml'.replace('-', '_')
+    return os.path.join(TESTS_DIR, filename)
+
+
+@pytest.fixture
+def compose_config_abs_path() -> str:
+    filename = f'{uuid4()}.yml'.replace('-', '_')
+    return os.path.join(TEMP_DIR, filename)
+
+
+def test_operate_compose_config(
+    compose_config,
+    compose_config_rel_path,
+    compose_config_abs_path
+):
+    # relative path
+    save_compose_config(
+        config=compose_config,
+        path=compose_config_rel_path,
+        overwrite=True
+    )
+    assert compose_config_rel_path in get_compose_config_filenames()
+
+    # raise on forbidden overwrite
+    with pytest.raises(ContentManagementError):
+        save_compose_config(
+            config=compose_config,
+            path=compose_config_rel_path,
+            overwrite=False
+        )
+
+    loaded_config = load_compose_config(compose_config_rel_path)
+    assert loaded_config == compose_config
+
+    delete_compose_config(compose_config_rel_path)
+    assert compose_config_rel_path not in get_compose_config_filenames()
+
+    # absolute path
+    save_compose_config(
+        config=compose_config,
+        path=compose_config_abs_path,
+        overwrite=True
+    )
+    assert os.path.exists(compose_config_abs_path)
+
+    loaded_config = load_compose_config(compose_config_abs_path)
+    assert loaded_config == compose_config
+
+    delete_compose_config(compose_config_abs_path)
+    assert not os.path.exists(compose_config_abs_path)

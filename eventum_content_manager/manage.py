@@ -16,6 +16,7 @@ TIME_PATTERNS_DIR = os.path.join(CONTENT_BASE_DIR, 'time_patterns')
 CSV_SAMPLES_DIR = os.path.join(CONTENT_BASE_DIR, 'samples')
 EVENT_TEMPLATES_DIR = os.path.join(CONTENT_BASE_DIR, 'templates')
 APPLICATION_CONFIGS_DIR = os.path.join(CONTENT_BASE_DIR, 'configs')
+COMPOSE_CONFIGS_DIR = os.path.join(CONTENT_BASE_DIR, 'compose')
 
 
 # For read functions we should initialize structure.
@@ -69,7 +70,7 @@ def get_template_filenames() -> list[str]:
 
 def get_csv_sample_filenames() -> list[str]:
     """Get all relative paths of currently existing samples in
-    content directory. Paths are relative to templates directory.
+    content directory. Paths are relative to samples directory.
     """
     return _get_filenames(
         root_dir=CSV_SAMPLES_DIR,
@@ -79,11 +80,22 @@ def get_csv_sample_filenames() -> list[str]:
 
 def get_app_config_filenames() -> list[str]:
     """Get all relative paths of currently existing app configuration
-    files in content directory. Paths are relative to templates
+    files in content directory. Paths are relative to app configs
     directory.
     """
     return _get_filenames(
         root_dir=APPLICATION_CONFIGS_DIR,
+        patterns=['**/*.yml', '**/*.yaml']
+    )
+
+
+def get_compose_config_filenames() -> list[str]:
+    """Get all relative paths of currently existing compose
+    configuration files in content directory. Paths are relative to
+    compose configs directory.
+    """
+    return _get_filenames(
+        root_dir=COMPOSE_CONFIGS_DIR,
         patterns=['**/*.yml', '**/*.yaml']
     )
 
@@ -220,6 +232,24 @@ def save_app_config(
     )
 
 
+def save_compose_config(
+    config: dict,
+    path: str,
+    overwrite: bool = False
+) -> None:
+    """Save compose configuration in specified path. If path is
+    relative then it is saved in content directory.
+    """
+    _save_object(
+        content=config,
+        path=path,
+        root_dir=COMPOSE_CONFIGS_DIR,
+        filename_validator=validate_yaml_filename,
+        formatter=yaml.dump,
+        overwrite=overwrite
+    )
+
+
 LoaderT = TypeVar('LoaderT')
 
 
@@ -311,6 +341,17 @@ def load_app_config(path: str) -> Any:
     )
 
 
+def load_compose_config(path: str) -> Any:
+    """Load specified compose config. If path is relative then it
+    is loaded from content directory.
+    """
+    return _load_object(
+        path=path,
+        root_dir=COMPOSE_CONFIGS_DIR,
+        loader=lambda content: yaml.load(content, yaml.SafeLoader)
+    )
+
+
 def _delete_object(path: str, root_dir: str | None = None) -> None:
     """Delete file under specified path. If path is relative then
     `root_dir` must be provided and it is used as base directory for
@@ -369,4 +410,14 @@ def delete_app_config(path: str) -> None:
     _delete_object(
         path=path,
         root_dir=APPLICATION_CONFIGS_DIR
+    )
+
+
+def delete_compose_config(path: str) -> None:
+    """Delete specified compose config. If path is relative then it
+    will be deleted from content directory.
+    """
+    _delete_object(
+        path=path,
+        root_dir=COMPOSE_CONFIGS_DIR
     )
