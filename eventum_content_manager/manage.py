@@ -330,14 +330,24 @@ def load_csv_sample(
     )
 
 
-def load_app_config(path: str) -> Any:
+def load_app_config(
+    path: str,
+    preprocessor: Callable[[str], str] | None = None
+) -> Any:
     """Load specified application config. If path is relative then it
-    is loaded from content directory.
+    is loaded from content directory. If preprocessor is passed then it
+    is called with raw file content before loading it as yaml object.
     """
+    def loader(content: str) -> Any:
+        if preprocessor is None:
+            return yaml.load(content, yaml.SafeLoader)
+        else:
+            return yaml.load(preprocessor(content), yaml.SafeLoader)
+
     return _load_object(
         path=path,
         root_dir=APPLICATION_CONFIGS_DIR,
-        loader=lambda content: yaml.load(content, yaml.SafeLoader)
+        loader=loader
     )
 
 
