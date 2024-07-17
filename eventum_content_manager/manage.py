@@ -132,7 +132,7 @@ def _save_object(
         try:
             filename_validator(filename)
         except ValueError as e:
-            raise ContentManagementError(str(e)) from e
+            raise ContentManagementError(str(e)) from None
 
     if overwrite is False and os.path.exists(path):
         raise ContentManagementError(
@@ -145,18 +145,20 @@ def _save_object(
         try:
             content = formatter(content)
         except Exception as e:
-            raise ContentManagementError(f'Failed to format content: {e}')
+            raise ContentManagementError(
+                f'Failed to format content: {e}'
+            ) from e
     elif not isinstance(content, str):
         raise ContentManagementError(
             'Parameter `formatter` must be provided when `content` '
-            'in not of class string'
+            'is not of type string'
         )
 
     try:
         with open(path, 'w') as f:
             f.write(content)
     except OSError as e:
-        raise ContentManagementError(str(e)) from e
+        raise ContentManagementError(str(e)) from None
 
 
 def save_time_pattern(
@@ -276,7 +278,7 @@ def _load_object(
         with open(path) as f:
             content = f.read()
     except OSError as e:
-        raise ContentManagementError(str(e)) from e
+        raise ContentManagementError(str(e)) from None
 
     if loader is None:
         return content
@@ -284,7 +286,9 @@ def _load_object(
     try:
         return loader(content)
     except Exception as e:
-        raise ContentManagementError(f'Failed to load content: {e}')
+        raise ContentManagementError(
+            f'Failed to load content: {e}'
+        ) from e
 
 
 def load_time_pattern(path: str) -> Any:
@@ -383,7 +387,9 @@ def _delete_object(path: str, root_dir: str | None = None) -> None:
     try:
         os.remove(path)
     except OSError as e:
-        raise ContentManagementError(f'Failed to delete: {e}')
+        raise ContentManagementError(
+            f'Failed to delete: {e}'
+        ) from None
 
 
 def delete_time_pattern(path: str) -> None:
