@@ -22,8 +22,8 @@ COMPOSE_CONFIGS_DIR = os.path.join(CONTENT_BASE_DIR, 'compose')
 # For read functions we should initialize structure.
 # Creation of subdirectories in save functions is handled on their own.
 for dir in [
-    TIME_PATTERNS_DIR, CSV_SAMPLES_DIR,
-    EVENT_TEMPLATES_DIR, APPLICATION_CONFIGS_DIR
+    TIME_PATTERNS_DIR, CSV_SAMPLES_DIR, EVENT_TEMPLATES_DIR,
+    APPLICATION_CONFIGS_DIR, COMPOSE_CONFIGS_DIR
 ]:
     os.makedirs(dir, exist_ok=True)
 
@@ -380,7 +380,10 @@ def _delete_object(path: str, root_dir: str | None = None) -> None:
             f'Failed to delete: no such file "{path}"'
         )
 
-    os.remove(path)
+    try:
+        os.remove(path)
+    except OSError as e:
+        raise ContentManagementError(f'Failed to delete: {e}')
 
 
 def delete_time_pattern(path: str) -> None:
